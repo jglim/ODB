@@ -1,10 +1,5 @@
 # ODB
 
-Created By: JinGen Lim
-Last Edited: Oct 12, 2020 7:50 PM
-
-# ODB
-
 Utilities for Softing binary ObjectDB files that are commonly used in automotive ECU diagnostics definition files (e.g. SMR-D). 
 
 - **ObjectDB (Library)** : Parse, decrypt and decompress ODB files
