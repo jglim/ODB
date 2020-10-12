@@ -115,4 +115,4 @@ A section may optionally be compressed (`SectionAttributes & 0x100 > 0`). The co
 
 # File Table
 
-At this point, the ODB content should be mostly legible except for the lack of a file table. My original intent was to build a tool to extract files from an ODB tool, and I could somewhat achieve this by looking for file headers. As such, no file table features are implemented at this point. Contributions are welcome!
+At this point, the ODB content should be mostly legible except for the lack of a file table. My original intent was to build a tool to extract files from an ODB container (SMR-D), and I could somewhat achieve this by looking for file headers. As such, no file table features are implemented at this point. Contributions are welcome!
