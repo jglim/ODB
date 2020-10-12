@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30309.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObjectDB", "ObjectDB\ObjectDB.csproj", "{58C8F68F-EE65-4F93-8F4A-EE2D07504E41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ODBExtract", "ODBExtract\ODBExtract.csproj", "{8AB78A9B-421C-439F-AFC0-CD06EE785B53}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{58C8F68F-EE65-4F93-8F4A-EE2D07504E41}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{58C8F68F-EE65-4F93-8F4A-EE2D07504E41}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{58C8F68F-EE65-4F93-8F4A-EE2D07504E41}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{58C8F68F-EE65-4F93-8F4A-EE2D07504E41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8AB78A9B-421C-439F-AFC0-CD06EE785B53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8AB78A9B-421C-439F-AFC0-CD06EE785B53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8AB78A9B-421C-439F-AFC0-CD06EE785B53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8AB78A9B-421C-439F-AFC0-CD06EE785B53}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B59000C3-A311-4281-BC95-AB65EBEABB65}
+	EndGlobalSection
+EndGlobal
