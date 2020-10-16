@@ -22,13 +22,22 @@ When an ODB file is successfully loaded, the embedded files can be accessed with
 
 .NET library to work with ODB files. 
 
-When an ODB file is loaded (either by file name, or an array of bytes), all recognized sections (such as MetaInfo, string table, binary section etc.) are made available after being processed with the appropriate decompression and decryption functions. For some ODB variants like SMR-F, the additional data payload is not parsed.
+When an ODB file is loaded (either by file name, or an array of bytes), all recognized sections (such as MetaInfo, string table, binary section etc.) are made available after being processed with the appropriate decompression and decryption functions. For some ODB variants like SMR-F, the additional flash payload is decrypted without further parsing.
 
 ---
 
 ## License
 
 MIT
+
+---
+
+## Thanks
+
+- [@angelovAlex](https://github.com/angelovAlex)
+- [@rnd-ash](https://github.com/rnd-ash)
+
+Thank you for your contributions.
 
 ---
 

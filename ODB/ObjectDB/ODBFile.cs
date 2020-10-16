@@ -45,6 +45,11 @@ namespace ObjectDB
         public string[] ODBStringTable = new string[] { };
 
         /// <summary>
+        /// Decrypted blob that contains binary flash data (SMR-F)
+        /// </summary>
+        public byte[] ODBFlashBinary = new byte[] { };
+
+        /// <summary>
         /// ODB embedded metadata section that describes its parent file and generation parameters 
         /// </summary>
         public string MetaInfo = "";
@@ -119,8 +124,8 @@ namespace ObjectDB
                 int headerValue14 = reader.ReadInt32(); // ee ee ee ee
                 int headerValue15 = reader.ReadInt32(); // ee ee ee ee
 
-                // Unknown, usually zero
-                int headerValue16 = reader.ReadInt32();
+                // Flash payload size
+                int HeaderFlashSize = reader.ReadInt32();
 
                 // MetaInfo size in bytes
                 int HeaderMetaInfoSize = reader.ReadInt32();
@@ -135,10 +140,11 @@ namespace ObjectDB
                 byte[] decryptionKey = BlowfishKeyTable.GetBlowfishKeyFromClientID(HeaderClientID);
                 BlowFish bf = new BlowFish(decryptionKey);
 
-                HashBlock = CreateDataSection(reader, 0x20, 0, xorMask, null);
+                HashBlock = CreateDataSection(reader, 0x20, 0, xorMask, null, true);
                 ODBUnknown = CreateDataSection(reader, HeaderOdbSection1Size, HeaderOdbSection1Attributes, xorMask, bf);
                 ODBBinary = CreateDataSection(reader, HeaderOdbSection2Size, HeaderOdbSection2Attributes, xorMask, bf);
                 ODBStrings = CreateDataSection(reader, HeaderOdbSection3Size, HeaderOdbSection3Attributes, xorMask, bf);
+                ODBFlashBinary = CreateDataSection(reader, HeaderFlashSize, 0, xorMask, null);
 
 #if DEBUG
                 Console.WriteLine($"Blowfish Key: {BitUtility.BytesToHex(decryptionKey)}");
@@ -146,7 +152,7 @@ namespace ObjectDB
 #endif
                 if (reader.BaseStream.Position != fileBytes.Length)
                 {
-                    Console.WriteLine("Warning: some bytes may have been skipped (cursor does not stop at file end, typical in SMR-F)");
+                    Console.WriteLine("Warning: some bytes may have been skipped (cursor does not stop at file end)");
                 }
             }
             FileBytes = fileBytes;
@@ -154,14 +160,15 @@ namespace ObjectDB
             ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.ASCII);
         }
 
-        private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf)
+        private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf, bool invertedCursorBehavior=false)
         {
             int cursorPosition = (int)reader.BaseStream.Position;
             byte[] sectionRawBytes = reader.ReadBytes(sectionSize);
-            // If no blowfish instance is provided, only perform xor transform (specific to the 0x20 block)
+            // If no blowfish instance is provided, only perform xor transform
+            // The hashblock has a quirk that requires the cursor to be set at the end of the block
             if (bf is null)
             {
-                return XorTransform(sectionRawBytes, (int)reader.BaseStream.Position, xorMask);
+                return XorTransform(sectionRawBytes, invertedCursorBehavior ? (int)reader.BaseStream.Position : cursorPosition, xorMask);
             }
             byte[] sectionUnxorBytes = XorTransform(sectionRawBytes, cursorPosition, xorMask);
             byte[] sectionPlainBytes = bf.Decrypt_ECB(sectionUnxorBytes);
