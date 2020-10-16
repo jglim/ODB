@@ -71,7 +71,7 @@ For compatible files, a 0x44 byte header will follow the magic.
 - Section3 Attributes: `UInt32` - Attributes of section 3
 - Unknown5 : `UInt32` - Could be an 8-byte array (1/2)
 - Unknown6 : `UInt32` - Could be an 8-byte array (2/2)
-- Unknown7 : `UInt32` - Unknown, usually 0
+- Flash Payload Size : `UInt32` - Size of the raw flash section, used in SMR-F
 - MetaInfo Size: `UInt32` - Size of the following MetaInfo section
 
 ## MetaInfo
@@ -104,9 +104,9 @@ This section contains binary data. Embedded files can also be found here, and th
 
 This section contains only strings. Strings are delineated by null terminators `00`.
 
-## Optional additional data
+## Optional flash data
 
-For SMR-D files, the data should end exactly after Section3. SMR-F files have additional follow-up data after Section3 that is ignored by this parser.
+For SMR-D files, the data should end exactly after Section3. SMR-F files have an additional flash payload after Section3 that can be accessed from `ODBFile.ODBFlashBinary`.
 
 # Cryptography
 
