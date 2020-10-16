@@ -60,19 +60,20 @@ For compatible files, a 0x44 byte header will follow the magic.
 - Hashblock offset : `UInt32` - Offset to hashblock from file start
 - Client ID : `Int32` - Identifies the vendor that the ODB is intended for. Affects decryption
 - Xor Mask Size : `UInt32` - Defines the XOR pad's size in first layer of decryption
-- Unknown2 : `UInt32` - Looks like 3 sets of UInt32 to match the 3 primary sections (1/3)
-- Unknown3 : `UInt32` - Looks like 3 sets of UInt32 to match the 3 primary sections (2/3)
-- Unknown4 : `UInt32` - Looks like 3 sets of UInt32 to match the 3 primary sections (3/3)
+- MetaInfo Block Size : `UInt32` - Size of MetaInfo content + UInt32 MetaInfo size prefix
+- Constant1 : `UInt32` - Appears to be hardcoded as `0` (ODBase, SMR files)
+- Unknown2 : `UInt32` - Unknown, seems to be the length/size of something.
 - Section1 Size: `UInt32` - Size of section 1
 - Section1 Attributes: `UInt32` - Attributes of section 1
 - Section2 Size: `UInt32` - Size of section 2
 - Section2 Attributes: `UInt32` - Attributes of section 2
 - Section3 Size: `UInt32` - Size of section 3
 - Section3 Attributes: `UInt32` - Attributes of section 3
-- Unknown5 : `UInt32` - Could be an 8-byte array (1/2)
-- Unknown6 : `UInt32` - Could be an 8-byte array (2/2)
+- Uninitialized1 : `UInt32` - Header is `memset()` with `0xEE`, this value was never assigned to
+- Uninitialized2 : `UInt32` - Header is `memset()` with `0xEE`, this value was never assigned to
 - Flash Payload Size : `UInt32` - Size of the raw flash section, used in SMR-F
-- MetaInfo Size: `UInt32` - Size of the following MetaInfo section
+
+- MetaInfo Content Size: `UInt32` - Size of the following MetaInfo section's content (This field technically isn't part of the header, instead it should belong to the MetaInfo block)
 
 ## MetaInfo
 
