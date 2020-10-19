@@ -85,7 +85,10 @@ MetaInfo contains information such as its parent ODB file, the build arguments, 
 
 *Requires: XOR transform*
 
-This section has a fixed size of 0x20 bytes. I named it hashblock to make it easier to remember as there are nearby MD5 operations, but this section's actual purpose is still unknown.
+This section has a fixed size of 0x20 bytes containing two MD5 hashes. 
+
+- The first header hash is created with `md5( file_magic + header + metainfo )`
+- The second body hash is created with `md5( xor(section1) + xor(section2) + xor(section3) )`
 
 ## Section1
 

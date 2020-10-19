@@ -20,9 +20,19 @@ namespace ObjectDB
         public byte[] FileBytes = new byte[] { };
 
         /// <summary>
-        /// Decrypted block of a fixed size (0x20) that seems to be a hash
+        /// Decrypted block of a fixed size (0x20) containing the header MD5 and the body MD5
         /// </summary>
-        public byte[] HashBlock = new byte[] { };
+        public byte[] MD5Block = new byte[] { };
+
+        /// <summary>
+        /// Header MD5 as read from MD5Block
+        /// </summary>
+        public byte[] HeaderMD5 = new byte[] { };
+
+        /// <summary>
+        /// Body MD5 as read from MD5Block
+        /// </summary>
+        public byte[] BodyMD5 = new byte[] { };
 
         /// <summary>
         /// Decrypted and uncompressed blob of unknown content
@@ -56,14 +66,17 @@ namespace ObjectDB
 
         private static readonly byte[] ODBMagic = new byte[] { 0x52, 0x90, 0xD4, 0x30, 0x67, 0x14, 0x7E, 0x47, 0x81, 0xF2, 0x3C, 0x4B, 0x73, 0xF0, 0xF7, 0x37 };
 
+        private const int HashblockSize = 0x20;
+        private const int ExpectedHeaderSize = 0x44;
+
         /// <summary>
         /// Creates an instance of an ObjectDB file
         /// </summary>
         /// <param name="fileBytes">ObjectDB file as an array of bytes</param>
         public ODBFile(byte[] fileBytes)
         {
-            // Magic (0x10) + header (0x44) is the bare minimum for a linear ObjectDB file
-            if (fileBytes.Length < 0x54)
+            // Magic (0x10) + header (0x44) + hashblock (0x20) is the bare minimum for a linear ObjectDB file
+            if (fileBytes.Length < (ODBMagic.Length + ExpectedHeaderSize + HashblockSize))
             {
                 Console.WriteLine("Warning: Unrecognized ODB file (invalid size)");
                 return;
@@ -78,10 +91,9 @@ namespace ObjectDB
                     return;
                 }
 
-                const int expectedHeaderSize = 0x44;
                 int headerSize = reader.ReadInt32();
 
-                if (headerSize != expectedHeaderSize)
+                if (headerSize != ExpectedHeaderSize)
                 {
                     Console.WriteLine("Warning: Incompatible ODB header (invalid size)");
                     return;
@@ -92,8 +104,8 @@ namespace ObjectDB
                 int HeaderClientID = reader.ReadInt32();
                 int HeaderXorMaskSize = reader.ReadInt32();
 
-                int headerValue5 = reader.ReadInt32();
-                int headerValue6 = reader.ReadInt32();
+                int HeaderMetaInfoBlockSize = reader.ReadInt32();
+                int headerUnkConstant0 = reader.ReadInt32();
                 int headerValue7 = reader.ReadInt32();
 
                 // Describes the 3 data sections
@@ -110,8 +122,8 @@ namespace ObjectDB
                 Console.WriteLine($"HeaderFileHashBlockOffset: {HeaderFileHashBlockOffset:X8}");
                 Console.WriteLine($"HeaderClientID: {HeaderClientID:X8}");
                 Console.WriteLine($"HeaderFileHashBlockMaskSize: {HeaderXorMaskSize:X8}");
-                Console.WriteLine($"headerValue5: {headerValue5:X8}");
-                Console.WriteLine($"headerValue6: {headerValue6:X8}");
+                Console.WriteLine($"HeaderMetaInfoBlockSize: {HeaderMetaInfoBlockSize:X8}");
+                Console.WriteLine($"headerUnkConstant0: {headerUnkConstant0:X8}");
                 Console.WriteLine($"headerValue7: {headerValue7:X8}");
                 Console.WriteLine($"Section 1 size: {HeaderOdbSection1Size:X8}");
                 Console.WriteLine($"Section 1 attributes: {HeaderOdbSection1Attributes:X8}");
@@ -120,9 +132,9 @@ namespace ObjectDB
                 Console.WriteLine($"Section 3 size: {HeaderOdbSection3Size:X8}");
                 Console.WriteLine($"Section 3 attributes: {HeaderOdbSection3Attributes:X8}");
 #endif
-                // Unknown, 8 byte array?
-                int headerValue14 = reader.ReadInt32(); // ee ee ee ee
-                int headerValue15 = reader.ReadInt32(); // ee ee ee ee
+                // Uninitialized data
+                int Constant1 = reader.ReadInt32(); // ee ee ee ee
+                int Constant2 = reader.ReadInt32(); // ee ee ee ee
 
                 // Flash payload size
                 int HeaderFlashSize = reader.ReadInt32();
@@ -140,19 +152,57 @@ namespace ObjectDB
                 byte[] decryptionKey = BlowfishKeyTable.GetBlowfishKeyFromClientID(HeaderClientID);
                 BlowFish bf = new BlowFish(decryptionKey);
 
-                HashBlock = CreateDataSection(reader, 0x20, 0, xorMask, null, true);
+                // Create our own MD5 hash for verification
+                // Header hash = md5(magic + header + metainfo)
+                byte[] expectedHeaderMd5 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                byte[] expectedBodyMd5 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                int headerMd5EndPosition = 0;
+                using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+                {
+                    headerMd5EndPosition = (int)reader.BaseStream.Position;
+                    expectedHeaderMd5 = md5.ComputeHash(fileBytes.Take(headerMd5EndPosition).ToArray());
+                }
+
+                // Read out MD5 block containing expected hashes of the header and body
+                MD5Block = CreateDataSection(reader, HashblockSize, 0, xorMask, null);
+                HeaderMD5 = MD5Block.Take(0x10).ToArray();
+                BodyMD5 = MD5Block.Skip(0x10).Take(0x10).ToArray();
+
+                // Create the 3x primary data sections
                 ODBUnknown = CreateDataSection(reader, HeaderOdbSection1Size, HeaderOdbSection1Attributes, xorMask, bf);
                 ODBBinary = CreateDataSection(reader, HeaderOdbSection2Size, HeaderOdbSection2Attributes, xorMask, bf);
                 ODBStrings = CreateDataSection(reader, HeaderOdbSection3Size, HeaderOdbSection3Attributes, xorMask, bf);
+
+                // Create our own body MD5 hash : md5( xor(section1) +  xor(section2) +  xor(section3) )
+                using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+                {
+                    int bodyOffset = headerMd5EndPosition + 0x20;
+                    int bodySize = (int)reader.BaseStream.Position - bodyOffset;
+                    byte[] bodyBytes = fileBytes.Skip(bodyOffset).Take(bodySize).ToArray();
+                    bodyBytes = XorTransform(bodyBytes, bodyOffset, xorMask);
+                    expectedBodyMd5 = md5.ComputeHash(bodyBytes);
+                }
+
+                // Read out flash data if it is available (SMR-F)
                 ODBFlashBinary = CreateDataSection(reader, HeaderFlashSize, 0, xorMask, null);
 
 #if DEBUG
                 Console.WriteLine($"Blowfish Key: {BitUtility.BytesToHex(decryptionKey)}");
+                Console.WriteLine($"Header MD5: Read: {BitUtility.BytesToHex(HeaderMD5)} Calculated: {BitUtility.BytesToHex(expectedHeaderMd5)}");
+                Console.WriteLine($"Body MD5:   Read: {BitUtility.BytesToHex(BodyMD5)} Calculated: {BitUtility.BytesToHex(expectedBodyMd5)}");
                 Console.WriteLine($"Read complete - cursor at {reader.BaseStream.Position}, file size: {fileBytes.Length}");
 #endif
                 if (reader.BaseStream.Position != fileBytes.Length)
                 {
                     Console.WriteLine("Warning: some bytes may have been skipped (cursor does not stop at file end)");
+                }
+                if (!HeaderMD5.SequenceEqual(expectedHeaderMd5))
+                {
+                    Console.WriteLine($"Header MD5 Mismatch: Expected: {BitUtility.BytesToHex(HeaderMD5)} Calculated: {BitUtility.BytesToHex(expectedHeaderMd5)}");
+                }
+                if (!BodyMD5.SequenceEqual(expectedBodyMd5))
+                {
+                    Console.WriteLine($"Body MD5 Mismatch:   Expected: {BitUtility.BytesToHex(BodyMD5)} Calculated: {BitUtility.BytesToHex(expectedBodyMd5)}");
                 }
             }
             FileBytes = fileBytes;
@@ -160,15 +210,14 @@ namespace ObjectDB
             ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.ASCII);
         }
 
-        private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf, bool invertedCursorBehavior=false)
+        private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf)
         {
             int cursorPosition = (int)reader.BaseStream.Position;
             byte[] sectionRawBytes = reader.ReadBytes(sectionSize);
             // If no blowfish instance is provided, only perform xor transform
-            // The hashblock has a quirk that requires the cursor to be set at the end of the block
             if (bf is null)
             {
-                return XorTransform(sectionRawBytes, invertedCursorBehavior ? (int)reader.BaseStream.Position : cursorPosition, xorMask);
+                return XorTransform(sectionRawBytes, cursorPosition, xorMask);
             }
             byte[] sectionUnxorBytes = XorTransform(sectionRawBytes, cursorPosition, xorMask);
             byte[] sectionPlainBytes = bf.Decrypt_ECB(sectionUnxorBytes);
