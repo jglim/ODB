@@ -50,7 +50,7 @@ namespace ODBExtract
             {
                 string preferredName = ExtractUtility.GenerateNameForZipFile(extractedZips[i], i);
                 Console.WriteLine(preferredName);
-                File.WriteAllBytes($"{Path.GetFileNameWithoutExtension(fileName)}_{preferredName}", extractedZips[i]);
+                File.WriteAllBytes($"{Path.GetFileNameWithoutExtension(fileName)}_{i}_{preferredName}", extractedZips[i]);
             }
             Console.WriteLine($"{extractedZips.Count} ZIP/JARs extracted");
         }
