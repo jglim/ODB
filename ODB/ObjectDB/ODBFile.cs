@@ -206,8 +206,8 @@ namespace ObjectDB
                 }
             }
             FileBytes = fileBytes;
-            // NOTE: ASCII may not be the best option here, since the string table actually specifies their required encoding (e.g. infer from de-DE)
-            ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.ASCII);
+            // NOTE: Not sure if the ODB file is capable of specifying an encoding, defaulting to utf8
+            ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.UTF8);
         }
 
         private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf)

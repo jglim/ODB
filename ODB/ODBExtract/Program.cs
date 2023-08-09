@@ -20,7 +20,8 @@ namespace ODBExtract
                     Console.WriteLine($"MetaInfo\r\n{odb.MetaInfo}\r\n");
                     Console.WriteLine($"Preparing to extract files");
                     ExtractDLLs(odb, fileName);
-                    ExtractZips(odb, fileName); 
+                    ExtractZips(odb, fileName);
+                    ExtractStrings(odb, fileName);
                 }
             }
             else
@@ -54,6 +55,18 @@ namespace ODBExtract
             }
             Console.WriteLine($"{extractedZips.Count} ZIP/JARs extracted");
         }
-
+        static void ExtractStrings(ODBFile odb, string fileName)
+        {
+            // https://github.com/jglim/ODB/issues/6
+            System.Text.StringBuilder builder = new();
+            foreach (string row in odb.ODBStringTable) 
+            {
+                // Null repetitions might be references to empty strings?
+                builder.AppendLine(row.Trim('\0'));
+            }
+            string preferredName = $"{Path.GetFileNameWithoutExtension(fileName)}_strings.txt";
+            File.WriteAllText(preferredName, builder.ToString(), System.Text.Encoding.UTF8);
+            Console.WriteLine($"{odb.ODBStringTable.Length} strings extracted");
+        }
     }
 }
