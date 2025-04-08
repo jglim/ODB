@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ObjectDB
 {
-    class BlowfishKeyTable
+    public class BlowfishKeyTable
     {
         public static byte[] GetBlowfishKeyFromClientID(int clientId)
         {

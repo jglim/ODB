@@ -61,7 +61,7 @@ Use the same mode of operation for decryption.
 
 namespace ObjectDB
 {
-    class BlowFish
+    public class BlowFish
     {
         #region "Global variables and constants"
 
