@@ -6,7 +6,7 @@ namespace ObjectDB
     /// Utilities for bit and byte operations.
     /// (Frequently copied-and-pasted across my projects)
     /// </summary>
-    class BitUtility
+    public class BitUtility
     {
         /// <summary>
         /// Sets all values in an array of bytes to a specific value

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.IO.Compression;
+using ObjectDB.Objects;
 
 namespace ObjectDB
 {
@@ -35,9 +36,9 @@ namespace ObjectDB
         public byte[] BodyMD5 = new byte[] { };
 
         /// <summary>
-        /// Decrypted and uncompressed blob of unknown content
+        /// Decrypted and uncompressed blob that contains the sizes of all objects in the order in which they are in the file
         /// </summary>
-        public byte[] ODBUnknown = new byte[] { };
+        public byte[] ODBObjectSizeList = new byte[] { };
 
         /// <summary>
         /// Decrypted and uncompressed blob that contains ODB binary content (and maybe the file table too)
@@ -60,9 +61,17 @@ namespace ObjectDB
         public byte[] ODBFlashBinary = new byte[] { };
 
         /// <summary>
+        /// This contains the offsets to objects stored in ODBBinary
+        /// </summary>
+        public uint[] ODBObjectOffsets = new uint[] { };
+
+        /// <summary>
         /// ODB embedded metadata section that describes its parent file and generation parameters 
         /// </summary>
         public string MetaInfo = "";
+
+        private readonly int HeaderSection2Attributes;
+        private readonly int HeaderType;
 
         private static readonly byte[] ODBMagic = new byte[] { 0x52, 0x90, 0xD4, 0x30, 0x67, 0x14, 0x7E, 0x47, 0x81, 0xF2, 0x3C, 0x4B, 0x73, 0xF0, 0xF7, 0x37 };
 
@@ -106,7 +115,7 @@ namespace ObjectDB
 
                 int HeaderMetaInfoBlockSize = reader.ReadInt32();
                 int headerUnkConstant0 = reader.ReadInt32();
-                int headerValue7 = reader.ReadInt32();
+                int headerOffsetArraySize = reader.ReadInt32();
 
                 // Describes the 3 data sections
                 int HeaderOdbSection1Size = reader.ReadInt32();
@@ -116,6 +125,8 @@ namespace ObjectDB
                 int HeaderOdbSection3Size = reader.ReadInt32();
                 int HeaderOdbSection3Attributes = reader.ReadInt32();
 
+                HeaderSection2Attributes = HeaderOdbSection2Attributes;
+
 #if DEBUG
                 Console.WriteLine($"File size: {fileBytes.Length:X8} ({fileBytes.Length}), Header size: {headerSize:X8}");
                 Console.WriteLine($"HeaderODBType: {HeaderODBType:X8}");
@@ -124,7 +135,7 @@ namespace ObjectDB
                 Console.WriteLine($"HeaderFileHashBlockMaskSize: {HeaderXorMaskSize:X8}");
                 Console.WriteLine($"HeaderMetaInfoBlockSize: {HeaderMetaInfoBlockSize:X8}");
                 Console.WriteLine($"headerUnkConstant0: {headerUnkConstant0:X8}");
-                Console.WriteLine($"headerValue7: {headerValue7:X8}");
+                Console.WriteLine($"headerValueOffsetArraySize: {headerOffsetArraySize:X8}");
                 Console.WriteLine($"Section 1 size: {HeaderOdbSection1Size:X8}");
                 Console.WriteLine($"Section 1 attributes: {HeaderOdbSection1Attributes:X8}");
                 Console.WriteLine($"Section 2 size: {HeaderOdbSection2Size:X8}");
@@ -169,7 +180,7 @@ namespace ObjectDB
                 BodyMD5 = MD5Block.Skip(0x10).Take(0x10).ToArray();
 
                 // Create the 3x primary data sections
-                ODBUnknown = CreateDataSection(reader, HeaderOdbSection1Size, HeaderOdbSection1Attributes, xorMask, bf);
+                ODBObjectSizeList = CreateDataSection(reader, HeaderOdbSection1Size, HeaderOdbSection1Attributes, xorMask, bf);
                 ODBBinary = CreateDataSection(reader, HeaderOdbSection2Size, HeaderOdbSection2Attributes, xorMask, bf);
                 ODBStrings = CreateDataSection(reader, HeaderOdbSection3Size, HeaderOdbSection3Attributes, xorMask, bf);
 
@@ -186,6 +197,7 @@ namespace ObjectDB
                 // Read out flash data if it is available (SMR-F)
                 ODBFlashBinary = CreateDataSection(reader, HeaderFlashSize, 0, xorMask, null);
 
+                ODBObjectOffsets = TransformOffsetSection(ODBObjectSizeList, headerOffsetArraySize, HeaderOdbSection1Attributes);
 #if DEBUG
                 Console.WriteLine($"Blowfish Key: {BitUtility.BytesToHex(decryptionKey)}");
                 Console.WriteLine($"Header MD5: Read: {BitUtility.BytesToHex(HeaderMD5)} Calculated: {BitUtility.BytesToHex(expectedHeaderMd5)}");
@@ -204,10 +216,19 @@ namespace ObjectDB
                 {
                     Console.WriteLine($"Body MD5 Mismatch:   Expected: {BitUtility.BytesToHex(BodyMD5)} Calculated: {BitUtility.BytesToHex(expectedBodyMd5)}");
                 }
+
+                HeaderType = HeaderODBType; 
             }
             FileBytes = fileBytes;
             // NOTE: Not sure if the ODB file is capable of specifying an encoding, defaulting to utf8
             ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.UTF8);
+#if DEBUG
+            for (int i = 0; i < ODBObjectOffsets.Length; i++)
+            {
+                ODBObject obj = GetObjectAt(i);
+                Console.WriteLine($"found object type: {obj}");
+            }
+#endif
         }
 
         private byte[] CreateDataSection(BinaryReader reader, int sectionSize, int sectionAttributes, byte[] xorMask, BlowFish bf)
@@ -276,6 +297,69 @@ namespace ObjectDB
                 result[rebasedOffset] = (byte)(xorMask[i % xorMask.Length] ^ targetBytes[rebasedOffset]);
             }
             return result.ToArray();
+        }
+
+        private static uint[] TransformOffsetSection(byte[] section1Buf, int offset_array_size, int optimization_level)
+        {
+            uint[] s1buf = new uint[offset_array_size];
+
+            using (ODBReader reader = new ODBReader(new BinaryReader(new MemoryStream(section1Buf)), optimization_level))
+            {
+                uint prev = 0;
+                for (int i = 0; i < offset_array_size; i++)
+                {
+                    s1buf[i] = prev;
+
+                    prev += reader.ReadUint32();
+                }
+                //s1buf[offset_array_size] = prev;
+            }
+
+            return s1buf;
+        }
+
+        public ODBObject GetObjectAt(int index)
+        {
+            uint offset = ODBObjectOffsets[index];
+#if DEBUG
+            Console.WriteLine($"object at offset {offset}");
+#endif
+
+            BinaryReader breader = new BinaryReader(new MemoryStream(ODBBinary.Skip((int)offset).ToArray()));
+            ODBReader odbreader = new ODBReader(breader, HeaderSection2Attributes, ODBStrings);
+            using (odbreader)
+            {
+                int object_type = odbreader.ReadInt32();
+                ODBObject obj = CreateObjectById(object_type);
+
+                if (obj == null)
+                {
+                    return null;
+                }
+
+                obj.ODBType = HeaderType;
+
+                // TODO: should probably implement some sort of object cache, or just parse
+                // all objects in the constructor. Re-parsing the object every time it's needed
+                // is ineffiecent. that said, it might also be a good idea to just leave the
+                // caching to the caller and keep this function as-is.
+                obj.ParseFromReader(odbreader);
+
+                return obj;
+            }
+        }
+
+        private static ODBObject CreateObjectById(int id)
+        {
+            switch (id)
+            {
+                case 0x32:
+                    return new VDXFlashImpl();
+                case 0x71:
+                    return new FlashDataImpl();
+                default:
+                    return new UnimplementedObject(id);
+            }
         }
 
         private static byte[] CreateXorMask(int maskSize)

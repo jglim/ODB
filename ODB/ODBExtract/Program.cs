@@ -19,6 +19,7 @@ namespace ODBExtract
                     ODBFile odb = ODBFile.FromFile(fileName);
                     Console.WriteLine($"MetaInfo\r\n{odb.MetaInfo}\r\n");
                     Console.WriteLine($"Preparing to extract files");
+
                     ExtractDLLs(odb, fileName);
                     ExtractZips(odb, fileName);
                     ExtractStrings(odb, fileName);
