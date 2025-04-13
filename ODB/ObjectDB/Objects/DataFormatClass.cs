@@ -64,8 +64,8 @@ namespace ObjectDB.Objects
                 }
                 else
                 {
-                    DataFormatSelection = 8;
                     DataFormatName = formatNames2[DataFormatSelection];
+                    DataFormatSelection = 8;
                 }
             }
         }
