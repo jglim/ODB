@@ -41,11 +41,8 @@ namespace ObjectDB.Objects
             HasDescription = reader.ReadBool();
             if (HasDescription)
             {
-                throw new Exception("'Description', a sub-object has not been implemented yet. this will lead to incorrect parsing");
-                // (has been somewhat implemented, but not properly, so don't just uncomment the code)
-
-                //Description.ODBType = ODBType;
-                //Description.ParseFromReader(reader);
+                Description.ODBType = ODBType;
+                Description.ParseFromReader(reader);
             }
         }
 
