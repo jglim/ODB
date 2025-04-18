@@ -217,16 +217,40 @@ namespace ObjectDB
                     Console.WriteLine($"Body MD5 Mismatch:   Expected: {BitUtility.BytesToHex(BodyMD5)} Calculated: {BitUtility.BytesToHex(expectedBodyMd5)}");
                 }
 
-                HeaderType = HeaderODBType; 
+                HeaderType = HeaderODBType;
             }
             FileBytes = fileBytes;
             // NOTE: Not sure if the ODB file is capable of specifying an encoding, defaulting to utf8
             ODBStringTable = ReadODBValueTable(ODBStrings, Encoding.UTF8);
 #if DEBUG
+            /*
             for (int i = 0; i < ODBObjectOffsets.Length; i++)
             {
-                ODBObject obj = GetObjectAt(i);
-                Console.WriteLine($"found object type: {obj}");
+                Console.WriteLine($"{i:X}, {ODBObjectOffsets[i]:X8}");
+            }
+            Console.ReadKey();
+            */
+
+
+            for (int i = 0; i < ODBObjectOffsets.Length; i++)
+            {
+                try
+                {
+                    ODBObject obj = GetObjectAt(i);
+                    if (obj is UnimplementedObject)
+                    {
+                        Console.WriteLine($"found unimplemented object type: {obj}");
+                    }
+                    else 
+                    {
+                        Console.WriteLine($"found object type: {obj}");
+                    }
+                    
+                }
+                catch (Exception ex) 
+                {
+                    Console.WriteLine($"Failed to parse {i}: {ex.Message}");
+                }
             }
 #endif
         }
@@ -322,7 +346,7 @@ namespace ObjectDB
         {
             uint offset = ODBObjectOffsets[index];
 #if DEBUG
-            Console.WriteLine($"object at offset {offset}");
+            Console.WriteLine($"object at offset {offset} (0x{offset:X})");
 #endif
 
             BinaryReader breader = new BinaryReader(new MemoryStream(ODBBinary.Skip((int)offset).ToArray()));
@@ -354,9 +378,21 @@ namespace ObjectDB
             switch (id)
             {
                 case 0x32:
-                    return new VDXFlashImpl();
+                    return new VdxFlashImpl();
+                case 0x70:
+                    return new DataBlockImpl();
                 case 0x71:
                     return new FlashDataImpl();
+                case 0x76:
+                    return new TeamMemberImpl();
+                case 0x8B:
+                    return new TargetAddrOffsetImpl();
+                case 0x97:
+                    return new FlashClassImpl();
+                case 0xB4:
+                    return new SecurityImpl();
+                case 0x187:
+                    return new ExternalFileImpl();
                 default:
                     return new UnimplementedObject(id);
             }

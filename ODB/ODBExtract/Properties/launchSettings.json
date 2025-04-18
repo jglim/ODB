@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "ODBExtract": {
+      "commandName": "Project",
+      "commandLineArgs": "2469026401_001.SMR-F"
+    },
+    "DebugSMRD": {
+      "commandName": "Project",
+      "commandLineArgs": "med40.smr-d"
+    }
+  }
+}

@@ -5,14 +5,14 @@ using Microsoft.VisualBasic;
 
 namespace ObjectDB.Objects
 {
-    public class VDXFlashImpl : Category
+    public class VdxFlashImpl : Category
     {
         private string String1;
         private uint[] MArray1;
         private uint[] MArray2;
         private uint[] MArray4;
 
-        public VDXFlashImpl() { }
+        public VdxFlashImpl() { }
 
         internal override void ParseFromReader(ODBReader reader)
         {
@@ -30,7 +30,7 @@ namespace ObjectDB.Objects
 
         public override string ToString()
         {
-            return $"VDXFlashImpl(String1={String1}, MArray1={MArray1}, MArray2={MArray2}, MArray4={MArray4}, base={base.ToString()}";
+            return $"VDXFlashImpl(String1={String1}, MArray1={MArray1.Length}, MArray2={MArray2.Length}, MArray4={MArray4.Length}, base={base.ToString()}";
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ObjectDB.Objects;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,6 +25,11 @@ namespace ObjectDB
             Reader = input;
             OptimizationLevel = optimizationLevel;
             StringsBase = stringsBase;
+        }
+
+        public long GetBasePosition() 
+        {
+            return Reader.BaseStream.Position;
         }
 
         public uint ReadUint32()
@@ -119,6 +125,16 @@ namespace ObjectDB
             return Reader.ReadByte();
         }
 
+        public void ThrowOnUnhandledOptimizationLevel()
+        {
+            // see odb obj base
+            if ((OptimizationLevel >> 4 & 1) == 0)
+            {
+                ReadByte();
+                throw new Exception("no idea how to handle this, supposed to read a byte, then store it in odb+3?");
+            }
+        }
+
         public uint[] ReadMArray()
         {
             uint len;
@@ -147,6 +163,49 @@ namespace ObjectDB
             }
 
             return result;
+        }
+
+        public byte[] ReadBytefield() 
+        {
+            uint len = ReadUint32();
+            return Reader.ReadBytes((int)len);
+        }
+
+        public DbRef ReadDbRef() 
+        {
+            DbRef dbRef = new DbRef();
+            dbRef.Bitfield = Reader.ReadByte();
+
+            /*
+.text:100180D4 FF 46 14                                      inc     dword ptr [esi+14h]
+.text:100180D7 80 7F 04 00                                   cmp     byte ptr [edi+4], 0
+.text:100180DB 7D 06                                         jge     short loc_100180E3 (skip uint read)
+             */
+            // param will always be greater or equal to 0, so this won't do anything?
+            // fixme: jge is signed
+            sbyte bitfieldSigned = unchecked((sbyte)dbRef.Bitfield);
+
+            if (bitfieldSigned < 0) 
+            {
+                dbRef.Unk1 = ReadUint32();
+            }
+            if ((dbRef.Bitfield & 0x70) > 0)
+            {
+                dbRef.String1 = ReadString();
+            }
+            if ((dbRef.Bitfield & 1) > 0)
+            {
+                dbRef.String2 = ReadString();
+            }
+            if ((dbRef.Bitfield & 2) > 0)
+            {
+                dbRef.Unk2 = Reader.ReadByte();
+            }
+            if ((dbRef.Bitfield & 4) > 0)
+            {
+                dbRef.String3 = ReadString();
+            }
+            return dbRef;
         }
 
         private byte[] ReadBytesEndiannessSafe(int numBytes)

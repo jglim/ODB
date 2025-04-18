@@ -23,6 +23,12 @@ namespace ODBExtract
                     ExtractDLLs(odb, fileName);
                     ExtractZips(odb, fileName);
                     ExtractStrings(odb, fileName);
+                    ExtractFlash(odb, fileName);
+
+#if DEBUG
+                    File.WriteAllBytes("FlashBinary", odb.ODBFlashBinary);
+                    File.WriteAllBytes("OdbBinary", odb.ODBBinary);
+#endif
                 }
             }
             else
@@ -68,6 +74,16 @@ namespace ODBExtract
             string preferredName = $"{Path.GetFileNameWithoutExtension(fileName)}_strings.txt";
             File.WriteAllText(preferredName, builder.ToString(), System.Text.Encoding.UTF8);
             Console.WriteLine($"{odb.ODBStringTable.Length} strings extracted");
+        }
+        static void ExtractFlash(ODBFile odb, string fileName)
+        {
+            // Assumes that anything in the flash segment is a segmented binary
+            var flashContent = new ObjectDB.Objects.DxDbBinaryFlashContent(odb.ODBFlashBinary);
+            foreach (var segment in flashContent.Segments)
+            {
+                File.WriteAllBytes($"{Path.GetFileNameWithoutExtension(fileName)}_{segment}.bin", segment.Content);
+            }
+            Console.WriteLine($"{flashContent.Segments.Length} segments extracted");
         }
     }
 }
